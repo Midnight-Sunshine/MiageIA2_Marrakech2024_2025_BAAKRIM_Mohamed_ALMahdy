@@ -24,7 +24,7 @@ class Vehicle {
     this.couleur = "black";
 
     // Poids par défaut des différents comportements
-    this.wanderWeight = 1;
+    this.wanderWeight = 0;
     this.followPathWeight = 2;
     this.separateWeight = 3;
 
@@ -47,13 +47,17 @@ class Vehicle {
     // separation des autres véhicules, le resultat est la force s
     let s = this.separate(vehicles);
 
+    let w = this.wander();
+
     // On fait une somme pondérée des deux forces
     f.mult(this.followPathWeight);
     s.mult(this.separateWeight); // essayez zéro ici !!!!
+    w.mult(this.wanderWeight);
 
     // On applique les forces au véhicule
     this.applyForce(f);
     this.applyForce(s);
+    this.applyForce(w);
   }
 
   applyForce(force) {

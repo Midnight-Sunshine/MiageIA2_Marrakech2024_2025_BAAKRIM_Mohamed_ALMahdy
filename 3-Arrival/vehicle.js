@@ -5,14 +5,14 @@ class Vehicle {
     this.pos = createVector(x, y);
     this.vel = createVector(0, 0);
     this.acc = createVector(0, 0);
-    this.maxSpeed = 10;
-    this.maxForce = 0.6;
+    this.maxSpeed = 6;
+    this.maxForce = 0.25;
     this.r = 16;
     this.rayonZoneDeFreinage = 100;
   }
 
-  applyBehaviors(target) {
-    let force = this.arrive(target);
+  applyBehaviors(target, d=0) {
+    let force = this.arrive(target, d);
     this.applyForce(force);
   }
 
@@ -32,18 +32,15 @@ class Vehicle {
     return this.seek(target);
   }
 
-  arrive(target) {
-    // 2nd argument true enables the arrival behavior
-    // 3rd argumlent d is the distance behind the target
-    // for "snake" behavior
-    return this.seek(target, true);
+  arrive(target, safeDistance=0) {
+    return this.seek(target, true, safeDistance);
   }
 
   flee(target) {
     // recopier code de flee de l'exemple précédent
   }
 
-  seek(target, arrival=false) {
+  seek(target, arrival=false, safeDistance=0) {
     let desiredSpeed = p5.Vector.sub(target, this.pos);
     let desiredSpeedMagnitude = this.maxSpeed;
 
@@ -51,11 +48,7 @@ class Vehicle {
       // on dessine un cercle de rayon 100 
       // centré sur le point d'arrivée
 
-      if (Vehicle.debug) {
-        noFill();
-        stroke("white")
-        circle(target.x, target.y, this.rayonZoneDeFreinage)
-      }
+      
       
       // on calcule la distance du véhicule
       // par rapport au centre du cercle
@@ -73,8 +66,14 @@ class Vehicle {
         // entre start2 et stop2
         // ici dist est entre 0 et le razyon du cercle de freinage, et on transforme cette valeur
         // pour qu'elle soit entre 0 et maxSpeed
-        desiredSpeedMagnitude = map(dist, 0, this.rayonZoneDeFreinage, 0, this.maxSpeed)
+        desiredSpeedMagnitude = map(dist, safeDistance, this.rayonZoneDeFreinage, 0, this.maxSpeed)
       }
+    }
+
+    if (Vehicle.debug) {
+      noFill();
+      stroke("white")
+      circle(this.pos.x, this.pos.y, this.rayonZoneDeFreinage)
     }
 
     // equation force = vitesseDesiree - vitesseActuelle

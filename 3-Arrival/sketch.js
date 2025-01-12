@@ -7,11 +7,17 @@ function preload() {
   font = loadFont('./assets/inconsolata.otf');
 }
 
+let vehicles = [];
+
 function setup() {
   createCanvas(800, 800);
 
   target = createVector(0, 0);
-  vehicle = new Vehicle(400, 400);
+  vehicles.push(new Vehicle(400, 400));
+  vehicles.push(new Vehicle(200, 200));
+  vehicles.push(new Vehicle(100, 100));
+  vehicles.push(new Vehicle(100, 100));
+  vehicles.push(new Vehicle(100, 100));
 }
 
 
@@ -32,9 +38,19 @@ function draw() {
   noStroke();
   ellipse(target.x, target.y, 32);
 
-  vehicle.applyBehaviors(target);
-  vehicle.update();
-  vehicle.show();
+   // Le premier véhicule suit la souris
+   vehicles[0].applyBehaviors(target);
+   vehicles[0].update();
+   vehicles[0].show();
+   vehicles[0].edges();
+
+    // Les autres véhicules suivent le premier
+    for (let i = 1; i < vehicles.length; i++) {
+      vehicles[i].applyBehaviors(vehicles[i-1].pos, 40);
+      vehicles[i].update();
+      vehicles[i].show();
+      vehicles[i].edges();
+    }
 }
 
 function keyPressed() {

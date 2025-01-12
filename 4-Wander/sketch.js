@@ -11,8 +11,29 @@ function preload() {
 
 function setup() {
   createCanvas(1000, 800);
-  vehicle = new Vehicle(100, 100, imageFusee);
+  
+  // Create 20 vehicles at random positions
+  for (let i = 0; i < 20; i++) {
+    let x = random(width);  // Random x position
+    let y = random(height); // Random y position
+    let vehicle = new Vehicle(x, y, imageFusee);  // Create a new vehicle
+    vehicles.push(vehicle);  // Add the vehicle to the vehicles array
+  }
+
+  // Slider for the number of vehicles
+  creerSliderPourNombreDeVehicules(10);
+
+  // Slider for trail length
+  creerSliderPourLongueurCheminDerriereVehicules(50);
+
+  // Sliders for Vehicle properties
+  creerUnSlider("Distance Cercle", 50, 300, 150, 10, 10, 200, "distanceCercle");
+  creerUnSlider("Rayon Cercle", 10, 200, 50, 5, 10, 250, "wanderRadius");
+  creerUnSlider("Variation Angle Theta", 0.01, 1, 0.1, 0.01, 10, 300, "displaceRange");
+  creerUnSlider("Vitesse Max", 1, 10, 4, 0.1, 10, 350, "maxSpeed");
+  creerUnSlider("Force Max", 0.1, 1, 0.2, 0.01, 10, 400, "maxForce");
 }
+
 
 // Fonction bien pratique pour créer un slider qui change une propriété précice de tous les véhicules
 function creerUnSlider(label, min, max, val, step, posX, posY, propriete) {
@@ -81,11 +102,12 @@ function draw() {
   background(0);
   //background(0, 0, 0, 20);
 
+  vehicles.forEach(vehicle => {
     vehicle.applyBehaviors();
-
     vehicle.update();
     vehicle.show();
     vehicle.edges();
+  });
 }
 
 function keyPressed() {

@@ -2,6 +2,7 @@ let pursuer1, pursuer2;
 let target;
 let obstacles = [];
 let vehicules = [];
+let snakeMode = false;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -34,7 +35,18 @@ function draw() {
   obstacles.forEach(o => {
     o.show();
   })
-
+  if (snakeMode)  {
+    vehicules[0].applyBehaviors(target, obstacles, vehicules);
+    vehicules[0].update();
+    vehicules[0].show();
+    vehicules[0].edges();
+    for (let i = 1; i < vehicules.length; i++) {
+      vehicules[i].applyBehaviors(vehicules[i-1].pos, obstacles, vehicules);
+      vehicules[i].update();
+      vehicules[i].show();
+      vehicules[i].edges();
+    }
+  }else {   
   vehicules.forEach(v => {
     // pursuer = le véhicule poursuiveur, il vise un point devant la cible
     v.applyBehaviors(target, obstacles, vehicules);
@@ -43,6 +55,7 @@ function draw() {
     v.update();
     v.show();
   });
+  }
 }
 
 function mousePressed() {
@@ -56,6 +69,11 @@ function keyPressed() {
   }
   if (key == "d") {
     Vehicle.debug = !Vehicle.debug;
+  }
+  if(key == "s") {
+    //on fait que chaque vehicule se dirige vers le vehicule suivant
+    snakeMode = !snakeMode;
+
   } else if (key == "f") {
     // on crée 10 véhicules à des position random espacées de 50px
     // en x = 20, y = hauteur du  canvas sur deux

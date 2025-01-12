@@ -5,7 +5,7 @@
 
 class Boid {
   static debug = false;
-  constructor(x, y, image) {
+  constructor(x, y, image, r, g, b) {
 
     this.pos = createVector(x, y);
 
@@ -15,11 +15,17 @@ class Boid {
     this.maxForce = 0.2;
     this.maxSpeed = 5;
     this.r = 6;
+    this.distanceAhead = 50;
+
+
+    this.col = color(r, g, b);
 
     // si le boid est une image
     if (image !== undefined) {
-      this.image = image;
-
+      this.image = createGraphics(image.width, image.height);
+      this.image.tint(this.col);
+      this.image.image(image, 0, 0);
+      
       // largeur image
       const li = this.image.width;
       // hauteur image
@@ -41,40 +47,98 @@ class Boid {
     // Pour la séparation
     this.separationWeight = 2;
     // Pour le confinement
+    this.boundariesWeight = 10;
+
+    // Paramètres comportement confinement
     this.boundariesX = 0;
     this.boundariesY = 0
     this.boundariesWidth = width;
     this.boundariesHeight = height;
     this.boundariesDistance = 25;
 
-    this.boundariesWeight = 10;
-
-    // Wander
+    // Paramètres  comportement Wander
     // pour comportement wander
     this.distanceCercle = 150;
     this.wanderRadius = 50;
     this.wanderTheta = 0;
     this.displaceRange = 0.1;
+
+    this.isSnakeFish = false; // Set to true for snake-like behavior
+    this.rayonZoneDeFreinage = 220; // For arrive behavior
+  }
+
+  applyAvoidanceForce(obstacles) {
+    let avoidForce = this.avoid(obstacles);
+    this.applyForce(avoidForce);
+  }
+
+  applyBehaviors(target, obstacles) {
+
+    let seekForce = this.arrive(target);
+    let avoidForce = this.avoid(obstacles);
+    let separateForce = this.separation(eels);
+    //let boudariesForce = this.boundaries();
+
+    separateForce.mult(this.separationWeight);
+    //boudariesForce.mult(3);
+
+    this.applyForce(seekForce);
+    this.applyForce(avoidForce);
+    this.applyForce(separateForce);
+    //this.applyForce(boudariesForce);
+  }
+
+  arrive(target, safeDistance = 50) {
+    let desiredSpeed = p5.Vector.sub(target, this.pos);
+    let desiredSpeedMagnitude = this.maxSpeed;
+
+    const dist = p5.Vector.dist(this.pos, target);
+    if (dist < this.rayonZoneDeFreinage) {
+      desiredSpeedMagnitude = map(dist, safeDistance, this.rayonZoneDeFreinage, 0, this.maxSpeed);
+    }
+
+    if (Boid.debug) {
+      noFill();
+      stroke("white");
+      circle(this.pos.x, this.pos.y, this.rayonZoneDeFreinage * 2);
+    }
+
+    desiredSpeed.setMag(desiredSpeedMagnitude);
+    let force = p5.Vector.sub(desiredSpeed, this.vel);
+    force.limit(this.maxForce);
+    this.applyForce(force);
   }
 
   // Equivalent de "applyBehaviors" dans le code des autres exemples
   // flock signifie "se rassembler" en anglais
   flock(boids) {
-    let alignment = this.align(boids);
-    let cohesion = this.cohesion(boids);
     let separation = this.separation(boids);
-    let boundaries = this.boundaries(this.boundariesX, this.boundariesY, this.boundariesWidth, this.boundariesHeight, this.boundariesDistance);
-    //let boundaries = this.boundaries(100, 200, 800, 400, 25);
-
-    alignment.mult(this.alignWeight);
-    cohesion.mult(this.cohesionWeight);
     separation.mult(this.separationWeight);
-    boundaries.mult(this.boundariesWeight);
-
-    this.applyForce(alignment);
-    this.applyForce(cohesion);
     this.applyForce(separation);
-    this.applyForce(boundaries);
+
+    if (!this.isSnakeFish) {
+      let alignment = this.align(boids);
+      let cohesion = this.cohesion(boids);
+      let boundaries = this.boundaries(this.boundariesX, this.boundariesY, this.boundariesWidth, this.boundariesHeight, this.boundariesDistance);
+      //let boundaries = this.boundaries(100, 200, 800, 400, 25);
+  
+      alignment.mult(this.alignWeight);
+      cohesion.mult(this.cohesionWeight);
+      boundaries.mult(this.boundariesWeight);
+  
+      this.applyForce(alignment);
+      this.applyForce(cohesion);
+      this.applyForce(boundaries); 
+    }
+
+    if (this.isSnakeFish) {
+      let snakeForce = this.arrive(target, 50);
+      this.applyForce(snakeForce);
+    }
+
+    this.avoid(obstacles);
+
+
   }
 
   align(boids) {
@@ -171,10 +235,21 @@ class Boid {
   }
 
   fleeWithTargetRadius(target) {
-    const d = this.pos.dist(target);
-    if (d < target.r + 10) {
+    const d = this.pos.dist(target.pos);
+    let rayonZoneAFuir = target.r + 10;
+
+    
+
+    if (d < rayonZoneAFuir) {
+      // On dessine le cercle de la zone à fuir
+      push();
+      stroke("red");
+      strokeWeight(2);
+      circle(target.pos.x, target.pos.y, rayonZoneAFuir*2);
+    pop();
+
       // je fuis la cible, on réutilise le comportement flee
-      const fleeForce = this.flee(target);
+      const fleeForce = this.flee(target.pos);
       fleeForce.mult(100);
       this.applyForce(fleeForce);
     }
@@ -242,6 +317,117 @@ class Boid {
 
     return force;
   }
+
+  getObstacleLePlusProche(obstacles) {
+    let plusPetiteDistance = 100000000;
+    let obstacleLePlusProche = undefined;
+
+    obstacles.forEach(o => {
+      // Je calcule la distance entre le vaisseau et l'obstacle
+      const distance = this.pos.dist(o.pos);
+
+      if (distance < plusPetiteDistance) {
+        plusPetiteDistance = distance;
+        obstacleLePlusProche = o;
+      }
+    });
+
+    return obstacleLePlusProche;
+  }
+
+  avoid(obstacles) {
+    let force = createVector(0, 0);
+
+    // Calculate ahead points
+    let ahead = this.vel.copy();
+    ahead.mult(this.distanceAhead);
+
+    let ahead2 = ahead.copy();
+    ahead2.mult(0.5);
+
+    let ahead3 = ahead2.copy();
+    ahead3.mult(0.5);
+
+    // Debug visual for the avoidance force (correct yellow line)
+    if (Boid.debug) { // Draw debug vectors 
+      this.drawVector(this.pos, ahead, "yellow");
+   }
+
+    // Adjust the points relative to the boid's current position
+    ahead.add(this.pos);
+    ahead2.add(this.pos);
+    ahead3.add(this.pos);
+
+    // Debug visuals for ahead points
+    if (Boid.debug) {
+        fill("red");
+        circle(ahead.x, ahead.y, 10);
+        fill("lightblue");
+        circle(ahead2.x, ahead2.y, 15);
+        fill("pink");
+        circle(ahead3.x, ahead3.y, 20);
+    }
+
+    // Find the closest obstacle using the getObstacleLePlusProche function
+    let closestObstacle = this.getObstacleLePlusProche(obstacles);
+
+    if (closestObstacle) {
+        // Calculate the distances between the ahead points and the closest obstacle
+        let distance1 = p5.Vector.dist(ahead, closestObstacle.pos);
+        let distance2 = p5.Vector.dist(ahead2, closestObstacle.pos);
+        let distance3 = p5.Vector.dist(ahead3, closestObstacle.pos);
+
+        // Find the smallest distance
+        let closestDistance = min(distance1, distance2, distance3);
+
+        // If there's a potential collision, calculate the avoidance force
+        if (closestDistance < closestObstacle.r + this.r / 2) {
+            let desiredSpeed;
+            // Determine which point triggered the collision
+            if (closestDistance === distance1) {
+                desiredSpeed = p5.Vector.sub(ahead, closestObstacle.pos);
+            } else if (closestDistance === distance2) {
+                desiredSpeed = p5.Vector.sub(ahead2, closestObstacle.pos);
+            } else {
+                desiredSpeed = p5.Vector.sub(ahead3, closestObstacle.pos);
+            }
+
+            // Debug visual for the avoidance force
+            if (Boid.debug) {
+              this.drawVector(closestObstacle.pos, desiredSpeed, "yellow");
+            }
+
+            // Calculate and apply the avoidance force
+            desiredSpeed.setMag(this.maxSpeed);
+            force = p5.Vector.sub(desiredSpeed, this.vel);
+            force.limit(this.maxForce);
+
+            this.applyForce(force);
+        }
+    }
+
+    return force;
+  }
+
+
+
+
+  drawVector(pos, v, color) {
+    push();
+    stroke(color);
+    strokeWeight(2);
+    fill(color);
+    line(pos.x, pos.y, pos.x + v.x, pos.y + v.y);
+    translate(pos.x + v.x, pos.y + v.y);
+    let arrowSize = 4;
+    rotate(v.heading());
+    triangle(0, arrowSize / 2, 0, -arrowSize / 2, arrowSize, 0);
+    pop();
+}
+
+
+
+
 
   // Permet de rester dans les limites d'une zone rectangulaire.
   // Lorsque le véhicule s'approche d'un bord vertical ou horizontal

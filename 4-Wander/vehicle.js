@@ -1,21 +1,32 @@
 class Vehicle {
   static debug = false;
+  
   constructor(x, y, image) {
     this.pos = createVector(x, y);
     this.vel = createVector(1, 0);
     this.acc = createVector(0, 0);
     this.maxSpeed = 4;
     this.maxForce = 0.2;
-    this.r = 46;
-    // sprite image du véhicule
-    this.image = image;
+    
+    // Generate a random size for each vehicle (within a specified range)
+    this.r = random(30, 80);  // Random radius size between 30 and 80
+  
+    this.col = color(random(255), random(255), random(255));
 
+    // Create a graphics object for the tinted image
+    this.image = createGraphics(image.width, image.height);
+    this.image.tint(this.col);
+    this.image.image(image, 0, 0);
 
-    // pour comportement wander
+    // For wander behavior
     this.distanceCercle = 150;
     this.wanderRadius = 50;
     this.wanderTheta = 0;
     this.displaceRange = 0.1;
+
+    // Trail feature: an array to store the past positions
+    this.path = [];
+    this.pathLength = 50; // Maximum size of the trail
   }
 
   applyBehaviors() {
@@ -24,52 +35,55 @@ class Vehicle {
   }
 
   wander() {
-    // point devant le véhicule, centre du cercle
+    // Calculate the center of the wander circle
+    let centreCercleDevant = this.vel.copy();
+    centreCercleDevant.setMag(this.distanceCercle);
+    centreCercleDevant.add(this.pos);
 
     if (Vehicle.debug) {
-      // on le dessine sous la forme d'une petit cercle rouge
-      //fill("red");
-      //circle(centreCercleDevant.x, centreCercleDevant.y, 8);
+        // Draw the wander circle center as a red dot
+        fill("red");
+        noStroke();
+        circle(centreCercleDevant.x, centreCercleDevant.y, 8);
 
-      // Cercle autour du point
-      //noFill();
-      //stroke("white");
-      //circle(centreCercleDevant.x, centreCercleDevant.y, this.wanderRadius * 2);
+        // Draw the wander circle
+        noFill();
+        stroke("white");
+        circle(centreCercleDevant.x, centreCercleDevant.y, this.wanderRadius * 2);
 
-      // on dessine une ligne qui relie le vaisseau à ce point
-      // c'est la ligne blanche en face du vaisseau
-      //line(this.pos.x, this.pos.y, centreCercleDevant.x, centreCercleDevant.y);
+        // Draw a line from the vehicle to the circle center
+        line(this.pos.x, this.pos.y, centreCercleDevant.x, centreCercleDevant.y);
     }
 
-    // On va s'occuper de calculer le point vert SUR LE CERCLE
-    // il fait un angle wanderTheta avec le centre du cercle
-    // l'angle final par rapport à l'axe des X c'est l'angle du vaisseau
-    // + cet angle
+    // Calculate the point on the circle
+    let pointSurCercle = createVector(
+        this.wanderRadius * cos(this.wanderTheta),
+        this.wanderRadius * sin(this.wanderTheta)
+    );
+    pointSurCercle.add(centreCercleDevant);
 
-    // on calcule les coordonnées du point vert
-
-    // on ajoute la position du vaisseau
-
-    // maintenant pointSurCercle c'est un point sur le cercle
-    // on le dessine sous la forme d'un cercle vert
     if (Vehicle.debug) {
-      //fill("lightGreen");
-      //circle(pointSurCercle.x, pointSurCercle.y, 8);
+        // Draw the green dot on the circle
+        fill("lightGreen");
+        noStroke();
+        circle(pointSurCercle.x, pointSurCercle.y, 8);
 
-      // on dessine une ligne qui va du vaisseau vers le point sur le 
-      // cercle
-      //line(this.pos.x, this.pos.y, pointSurCercle.x, pointSurCercle.y);
-
+        // Draw a line from the vehicle to the green dot
+        stroke("green");
+        line(this.pos.x, this.pos.y, pointSurCercle.x, pointSurCercle.y);
     }
-    // on calcule le vecteur desiredSpeed qui va du vaisseau au point vert
 
-    // On calcule la force = desiredSpeed - vitesseCourante
-    //let force = p5.Vector.sub(desiredSpeed, this.vel);
-    //force.setMag(this.maxForce);
+    // Calculate desired speed towards the green dot
+    let desiredSpeed = p5.Vector.sub(pointSurCercle, this.pos);
+    desiredSpeed.setMag(this.maxSpeed);
 
-    // On déplace le point vert sur le cercle (en radians)
+    // Calculate steering force
+    let force = p5.Vector.sub(desiredSpeed, this.vel);
+    force.limit(this.maxForce);
 
-    let force = createVector(0, 0);
+    // Update the wander angle
+    this.wanderTheta += random(-this.displaceRange, this.displaceRange);
+
     return force;
   }
 
@@ -90,7 +104,6 @@ class Vehicle {
   }
 
   arrive(target) {
-    // 2nd argument true enables the arrival behavior
     return this.seek(target, true);
   }
 
@@ -123,10 +136,48 @@ class Vehicle {
     this.vel.limit(this.maxSpeed);
     this.pos.add(this.vel);
     this.acc.set(0, 0);
+  
+    // Add the current position to the path (trail)
+    this.path.push(this.pos.copy());
+  
+    // Handle wrapping for the path
+    if (this.pos.x > width + this.r) {
+      this.pos.x = -this.r;
+      this.path = []; // Clear the path to prevent lines across the screen
+    } else if (this.pos.x < -this.r) {
+      this.pos.x = width + this.r;
+      this.path = [];
+    }
+    if (this.pos.y > height + this.r) {
+      this.pos.y = -this.r;
+      this.path = [];
+    } else if (this.pos.y < -this.r) {
+      this.pos.y = height + this.r;
+      this.path = [];
+    }
+  
+    // Limit the trail length
+    if (this.path.length > this.pathLength) {
+      this.path.shift(); // Remove the oldest position to keep the trail size constant
+    }
   }
-
+  
   show() {
-    // dessin du vaisseau avec image
+    // Set the color and thickness of the trail
+    let trailColor = this.col; // Use the vehicle's color for the trail
+    let trailThickness = 3; // Thickness of the trail
+  
+    // Draw the trail (path)
+    noFill();
+    stroke(trailColor);
+    strokeWeight(trailThickness);
+    beginShape();
+    this.path.forEach((currentPos) => {
+      vertex(currentPos.x, currentPos.y);
+    });
+    endShape();
+  
+    // Draw the vehicle with the image
     push();
     translate(this.pos.x, this.pos.y);
     rotate(this.vel.heading() - PI / 2);
@@ -134,6 +185,8 @@ class Vehicle {
     image(this.image, 0, 0, this.r * 2, this.r * 2);
     pop();
   }
+  
+  
 
   edges() {
     if (this.pos.x > width + this.r) {
