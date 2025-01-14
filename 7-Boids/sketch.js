@@ -3,6 +3,8 @@
 // https://thecodingtrain.com/CodingChallenges/124-flocking-boids.html
 // https://youtu.be/mhjuuHl6qHM
 
+let score = 0;
+let highscore = 0;
 const flock = [];
 const obstacles = [];
 const sharks = [];
@@ -35,6 +37,9 @@ function preload() {
 }
 
 function setup() {
+
+  highscore = int(localStorage.getItem('highscore')) || 0;
+
   createCanvas(windowWidth, windowHeight);
 
   const posYSliderDeDepart = 10;
@@ -74,6 +79,11 @@ function setup() {
     eels.push(snakeFish);
 
   updateFishArray();
+
+  // Spawn initial food particles
+  for (let i = 0; i < 10; i++) {
+    spawnFood();
+  }
 }
 
 function creerUnSlider(label, tabVehicules, min, max, val, step, posX, posY, propriete) {
@@ -102,6 +112,10 @@ function creerUnSlider(label, tabVehicules, min, max, val, step, posX, posY, pro
 
 function draw() {
   background(0);
+
+  textSize(24);
+  text(`Score: ${score}`, (windowWidth/2)-100, 30);
+  text(`Highscore: ${highscore}`, (windowWidth/2)-100, 60);
 
   labelNbBoids.html("Nombre de boids : " + flock.length);
 
@@ -153,6 +167,8 @@ function draw() {
           flock.splice(flock.indexOf(closest), 1);
         } else if (eels.includes(closest)) {
           eels.splice(eels.indexOf(closest), 1);
+          score -= 50;
+          score = max(0, score);
         }
       }
     }
@@ -181,6 +197,46 @@ function draw() {
 
   for (let o of obstacles) {
     o.show();
+  }
+
+   // Show all food particles
+   for (let food of foodParticles) {
+    food.show();
+  }
+
+  // First eel eats food
+  if (eels.length > 0) {
+    let firstEel = eels[0];
+    for (let i = foodParticles.length - 1; i >= 0; i--) {
+      let food = foodParticles[i];
+      if (firstEel.pos.dist(food.pos) < firstEel.r) {
+        // Eel eats the food
+        foodParticles.splice(i, 1);
+        score += 10;
+
+        if (score > highscore) {
+          highscore = score;
+          localStorage.setItem('highscore', highscore);
+        }
+        growLastEel();
+        spawnFood(); // Spawn a new food particle after one is eaten
+      }
+    }
+  }
+}
+
+function growLastEel() {
+  let lastEel = eels[eels.length - 1];
+  if (lastEel.r < 50) {
+    lastEel.r += 10;
+  } else {
+    // Add a new eel if the last eel has reached size 50
+    let newEel = new Boid(lastEel.pos.x, lastEel.pos.y, eelImage, random(150, 255), random(150, 255), random(150, 255));
+    newEel.isSnakeFish = true;
+    newEel.r = 10;
+    newEel.maxSpeed = 4;
+    newEel.maxForce = 0.2;
+    eels.push(newEel);
   }
 }
 
